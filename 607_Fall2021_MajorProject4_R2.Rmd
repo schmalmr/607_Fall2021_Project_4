@@ -1,0 +1,219 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+----
+title: "607_Fall2021_Project4 Rev2"
+author: "Mark Schmalfeld"
+date: "11/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r library}
+
+library(tidymodels)
+library(RCurl)
+library(caret)
+library(NLP)
+library(tidytext)
+library(corpus)
+library(R.utils)
+library(tm)
+suppressWarnings(library(wordcloud))
+library(SnowballC)
+library(data.table)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(stats)
+library(readtext)
+library(caTools)
+library(randomForest)
+library(tm.plugin.webmining)
+library(tm)
+library(RTextTools)
+library(R.utils)
+library(utils)
+library(textmineR)
+library(SparseM)
+
+```
+
+## Github data pull and unpack files
+
+Pull spam and ham files from Github
+Unzipe and untar the files
+
+
+```{r spam and ham pull github}
+
+
+# download and unzip spam document from github 
+download.file('https://raw.githubusercontent.com/schmalmr/607_Fall2021_Project_4/main/20021010_spam.tar.bz2', destfile="spam_zip.tar.bz2")
+bunzip2("spam_zip.tar.bz2", remove = F, overwrite = T)
+untar("spam_zip.tar") #set up a spam folder
+
+# download and unzip spam document from github
+
+download.file('https://raw.githubusercontent.com/schmalmr/607_Fall2021_Project_4/main/20030228_easy_ham_2.tar.bz2', destfile="ham_zip.tar.bz2")
+bunzip2("ham_zip.tar.bz2", remove = F, overwrite = T)
+untar("ham_zip.tar") #setup a ham folder
+
+
+```
+
+## Data clean up and DF for classification of the files
+
+Identify extraneous ham/ spam file and delete. 
+Create ham file with class 0 as "not spam" and spam file class at 1 foro "spam"
+Print out the number of ham and spam files we are working with in the datasets.
+
+
+```{r ham and spam file clean up and create combined ham_spam file}
+
+
+# identify unneded spam file and delete
+remove_spam <-list.files(path="spam/", full.names=T, recursive=FALSE, pattern="0000.7b1b73cf36cf9dbc3d64e3f2ee2b91f1" )
+file.remove(remove_spam)
+
+# list of spam files
+spam_files <- (list.files(path="spam/", full.names=T, recursive=FALSE))
+
+# identify extraneous ham file and delete
+remove_ham <- list.files(path="easy_ham_2/", full.names=T, recursive=FALSE, pattern="cmds")
+file.remove(remove_ham)
+
+# list of ham files
+ham_files <- list.files(path="easy_ham_2/",full.names=T, recursive=FALSE)
+
+spam<-data.frame()
+spam<-as.data.frame(unlist(spam_files),stringsAsFactors = FALSE)
+spam$class<-1
+colnames(spam)<-c("text","class")
+spam_num <- nrow(spam) # Total Number of Spam Emails
+print(paste0("The Total Number of Emails in the Spam Data-Set is : ", spam_num))
+
+
+ham<-data.frame()
+ham<-as.data.frame(unlist(ham_files),stringsAsFactors = FALSE)
+ham$class<-0
+colnames(ham)<-c("text","class")
+ham_num <- nrow(ham) # Total Number of Ham Emails
+print(paste0("The Total Number of Emails in the Ham Data-Set is : ", ham_num))
+
+
+
+
+```
+
+## Combining the ham and spam files 
+
+Combined spam and ham files to create a ham_spam file.
+Shuffle the files names using "2021" as seed number.
+Print out the head and the team data.
+
+
+
+```{r}
+ham_spam <- c(ham_files,spam_files)
+str(ham_spam)
+
+#shuffle file names
+set.seed(2021)
+ham_spam <- sample(ham_spam,length(ham_spam))
+
+print(paste0("The initial 15 email headers in the ham_spam Data-Set"))
+head(ham_spam,15)
+print(paste0(""))
+print(paste0("The initial 15 email tails in the ham_spam Data-Set"))
+# tail of 1st email
+tail(ham_spam,15)
+```
+
+
+
+## Corpus creation and clean up
+
+Create corpus vector source 
+Convert to lower case 
+Remove numbers
+Remove stop-words
+Remove white space
+
+
+```{r corpus setup}
+
+
+corpus = VCorpus(VectorSource(ham_spam))
+corpus = tm_map(corpus, content_transformer(tolower))
+corpus = tm_map(corpus, removeNumbers)
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, removeWords, stopwords())
+corpus = tm_map(corpus, stemDocument)
+corpus = tm_map(corpus, stripWhitespace)
+corpus = tm_map(corpus,stemDocument)
+
+wordcloud(corpus, max.words = 100, random.order = FALSE, rot.per=0.15, min.freq=5, colors = brewer.pal(8, "Dark2"))
+```
+## Document Term Matrix setup
+
+Create Document Term Matrix 
+remove sparse terms
+
+
+```{r DTM setup}
+
+dtm<- DocumentTermMatrix(corpus)
+dtm<- removeSparseTerms(dtm, 0.90)
+dtm
+
+
+
+
+```
+
+## Work on model classifier
+
+Work incompleted 
+
+
+{r Model size and setup for testing}
+
+
+# number of emails in corpus
+N <- length(spam_files)
+N
+# set up model container; 70/30 split between train and test data
+#container <- create_container(
+    dtm,
+    labels = (spam_file$text),
+    trainSize = 1:(0.7*N),
+    testSize = (0.7*N+1):N,
+    virgin = FALSE
+)
+
+svm_model <- train_model(container, "SVM")
+#tree_model <- train_model(container, "TREE")
+#maxent_model <- train_model(container, "MAXENT")
+
+svm_out <- classify_model(container, svm_model)
+#tree_out <- classify_model(container, tree_model)
+#maxent_out <- classify_model(container, maxent_model)
+
+{r Model size and setup for testing}
+
+
+## Resources
+
+The data wrangling methods used are representative of various methods covered in previous readings and exercises. However, the building of the classifier models draws significantly on the outlined procedures in Chapter 10 of Automated Data Collection with R, with particular emphasis on pages 310-312. Here is the full citation:
+
+Munzert, Simon et. “Chapter 10: Statistical Text Processing.” Automated Data Collection with R: a Practical Guide to Web Scraping and Text Mining, 1st ed., John Wiley & Sons Ltd., Chichester, UK, 2015, pp. 295-321.
+
+
+
